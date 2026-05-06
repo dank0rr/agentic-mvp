@@ -92,40 +92,49 @@ export default function RegisterPage() {
     setTouched((prev) => ({ ...prev, [name]: true }));
   }, []);
 
-  /* ── Submit (🔥 тут теперь Supabase) ── */
-  const handleSubmit = useCallback(
-    async (e: FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
+const handleSubmit = useCallback(
+  async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
 
-      setTouched({ name: true, phone: true, company: true, budget: true });
+    const formData = {
+      name: fields.name,
+      phone: fields.phone,
+      company: fields.company,
+      budget: Number(fields.budget),
+      utm: fields.utm,
+    };
 
-      const errs = validate(fields);
-      if (Object.keys(errs).length > 0) {
-        setErrors(errs);
-        return;
-      }
-
-      setLoading(true);
-
-      const { error } = await supabase.from("users").insert({
-        name: fields.name,
-        phone: fields.phone,
-        company_name: fields.company,
-        budget_limit_week: Number(fields.budget),
-        utm_source: fields.utm,
+    try {
+      await fetch('https://h.albato.ru/wh/38/1lfehmj/QZ6kAdjAq3URvqJkCogZqWTf8_gy8Y31rwjt9wHmQYc/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
+    } catch (err) {
+      console.warn('Albato webhook failed:', err);
+      // Не прерываем поток, если интеграция недоступна
+    }
 
-      if (error) {
-        alert("Ошибка: " + error.message);
-      } else {
-        alert("Регистрация успешна!");
-        router.push("/dashboard");
-      }
+    // 2. Сохранение в Supabase (как в ПР-04)
+    const { error } = await supabase.from('users').insert({
+      name: fields.name,
+      phone: fields.phone,
+      company_name: fields.company,
+      budget_limit_week: formData.budget,
+      utm_source: fields.utm
+    });
 
-      setLoading(false);
-    },
-    [fields, router]
-  );
+    if (error) {
+      alert('Ошибка БД: ' + error.message);
+    } else {
+      alert('Данные сохранены и отправлены в CRM!');
+      router.push('/dashboard');
+    }
+    setLoading(false);
+  },
+  [fields, router]
+);
 
   /* ── Fields ── */
   const fieldConfig = [
